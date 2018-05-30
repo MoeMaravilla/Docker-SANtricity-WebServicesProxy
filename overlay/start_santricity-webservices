@@ -1,0 +1,36 @@
+#!/bin/bash
+
+# First time setup
+if [[ ! -e /opt/netapp/santricity_web_services_proxy/working ]]; then
+  # Check that the user mounted a volume (for persistence)
+  if (mount| grep -q " /opt/netapp/santricity_web_services_proxy "); then
+    cp -a /opt/netapp/santricity_web_services_proxy.seed/* /opt/netapp/santricity_web_services_proxy/
+  else
+    echo "Error: container requires volume-mount at /opt/netapp/santricity_web_services_proxy."
+    exit 2
+  fi
+fi
+
+shutdown() {
+  echo "Shutting Down"
+  /opt/netapp/santricity_web_services_proxy/web_services_proxy stop
+
+  # give stuff a bit of time to finish
+  sleep 2
+
+  exit
+}
+
+trap shutdown SIGTERM SIGHUP SIGINT
+
+# Update passwords (updates whenever the container restarts
+/opt/netapp/santricity_web_services_proxy/jre/bin/java -Xmx1024M -jar \
+           /opt/netapp/santricity_web_services_proxy/securepasswds.jar \
+           /opt/netapp/santricity_web_services_proxy/data/config/users.properties
+
+/opt/netapp/santricity_web_services_proxy/web_services_proxy start
+
+# Sleep forever
+while true; do
+  sleep 3600
+done
